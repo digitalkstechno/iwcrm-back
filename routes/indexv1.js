@@ -5,5 +5,6 @@ router.use("/health", require("./health"));
 router.use("/staff", require("./staff"));
 router.use("/dealer", require("./dealer"));
 router.use("/lead", require("./lead"));
+router.use("/dashboard", require("./dashboard"));
 
 module.exports = router;

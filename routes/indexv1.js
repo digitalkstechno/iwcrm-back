@@ -7,5 +7,6 @@ router.use("/dealer", require("./dealer"));
 router.use("/lead", require("./lead"));
 router.use("/dashboard", require("./dashboard"));
 router.use("/settings", require("./setting"));
+router.use("/webhook", require("./webhook"));
 
 module.exports = router;

@@ -42,6 +42,10 @@ const leadSchema = new mongoose.Schema(
       ref: "Dealer",
       default: null,
     },
+    role: {
+      type: String,
+      default: "Client",
+    },
   },
   { timestamps: true }
 );

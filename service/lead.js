@@ -55,7 +55,7 @@ const autoAssignDealerByCity = async (city) => {
 
 exports.createLeadService = async (data) => {
   // If dealer is not explicitly provided, try to auto-assign based on city
-  if (!data.dealer && data.city) {
+  if (!data.dealer && data.city && data.role !== 'architect') {
     const assigned = await autoAssignDealerByCity(data.city);
     if (assigned) {
       data.dealer = assigned.dealerId;

@@ -128,7 +128,7 @@ exports.handleMetaWebhook = async (req, res) => {
         if (session) {
           let replyText = '';
           if (session.step === 'ROLE_SELECTION') {
-            if (['client', 'architect', 'dealer'].includes(incomingText)) {
+            if (incomingText === 'client') {
               session.role = incomingText;
               session.step = 'CLIENT_OPTIONS';
               await sendMessage({
@@ -153,8 +153,42 @@ exports.handleMetaWebhook = async (req, res) => {
                   }
                 }
               });
+            } else if (incomingText === 'dealer') {
+              session.role = incomingText;
+              session.step = 'DEALER_OPTIONS';
+              await sendMessage({
+                type: 'interactive',
+                interactive: {
+                  type: 'button',
+                  body: { text: 'Do you have a showroom or is this for personal use?' },
+                  action: {
+                    buttons: [
+                      { type: 'reply', reply: { id: 'dealer_showroom', title: 'Showroom' } },
+                      { type: 'reply', reply: { id: 'dealer_personal', title: 'Personal Use' } }
+                    ]
+                  }
+                }
+              });
+            } else if (incomingText === 'architect') {
+              session.role = incomingText;
+              session.step = 'NAME';
+              replyText = `Please reply with your *Full Name*.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
             } else {
               replyText = `Please select a valid role: Client, Architect, or Dealer.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+            }
+          } else if (session.step === 'DEALER_OPTIONS') {
+            if (incomingText === 'showroom') {
+              replyText = `Please share a short video of your showroom and your visiting card with us.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+              chatSessions.delete(senderPhone);
+            } else if (incomingText === 'personal use') {
+              session.step = 'NAME';
+              replyText = `Please reply with your *Full Name*.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+            } else {
+              replyText = `Please select a valid option: Showroom or Personal Use.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
             }
           } else if (session.step === 'CLIENT_OPTIONS') {
@@ -216,7 +250,8 @@ exports.handleMetaWebhook = async (req, res) => {
                 contactName: session.contactName,
                 companyName: session.companyName || 'Not Provided',
                 city: session.city,
-                phone: processedPhone
+                phone: processedPhone,
+                role: session.role || 'Client'
               };
               await createLeadService(leadData);
               console.log(`[Chatbot] Lead saved successfully for ${processedPhone}.`);

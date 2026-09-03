@@ -2,13 +2,13 @@ const Setting = require('../model/setting');
 
 exports.saveSettings = async (req, res) => {
   try {
-    const { configType, metaDomain, metaPhoneNumberId, metaWabaId, metaChannelToken, metaVerifyToken, botKeywords } = req.body;
+    const { configType, metaDomain, metaPhoneNumberId, metaWabaId, metaChannelToken, metaVerifyToken, botKeywords, botFlowId } = req.body;
 
     const type = configType || 'meta_whatsapp';
 
     const setting = await Setting.findOneAndUpdate(
       { configType: type },
-      { metaDomain, metaPhoneNumberId, metaWabaId, metaChannelToken, metaVerifyToken, botKeywords },
+      { metaDomain, metaPhoneNumberId, metaWabaId, metaChannelToken, metaVerifyToken, botKeywords, botFlowId },
       { new: true, upsert: true }
     );
 

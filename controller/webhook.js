@@ -1,4 +1,5 @@
 const Setting = require('../model/setting');
+const Lead = require('../model/lead');
 const axios = require('axios');
 
 exports.verifyMetaWebhook = async (req, res) => {
@@ -76,18 +77,51 @@ exports.handleMetaWebhook = async (req, res) => {
           console.log(`[Chatbot] Received "${incomingText}" from ${senderPhone}. Replying...`);
 
           // 1. Fetch credentials from Database
-          // Already fetched above
+          // 2. Prepare Meta API call
           const domain = setting.metaDomain.replace(/\/+$/, '');
           const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
-          const payload = {
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: senderPhone,
-            type: 'text',
-            text: {
-              body: 'welcome to invisible world.'
-            }
-          };
+          
+          let payload;
+          if (setting.botFlowId) {
+            // Send Flow Message
+            payload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: senderPhone,
+              type: 'interactive',
+              interactive: {
+                  type: 'flow',
+                  header: { type: 'text', text: 'Lead Registration' },
+                  body: { text: 'Welcome! Please fill out this short form so we can assist you better.' },
+                  footer: { text: 'Powered by CRM' },
+                  action: {
+                      name: 'flow',
+                      parameters: {
+                          flow_message_version: '3',
+                          flow_token: `lead_${senderPhone}_${Date.now()}`,
+                          flow_id: setting.botFlowId,
+                          flow_cta: 'Fill Form',
+                          flow_action: 'navigate',
+                          mode: 'published',
+                          flow_action_payload: {
+                              screen: 'LEAD_FORM'
+                          }
+                      }
+                  }
+              }
+            };
+          } else {
+            // Fallback to text message
+            payload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: senderPhone,
+              type: 'text',
+              text: {
+                body: 'welcome to invisible world.'
+              }
+            };
+          }
 
           try {
             // Remove all spaces and newlines completely from the token
@@ -105,6 +139,49 @@ exports.handleMetaWebhook = async (req, res) => {
           } catch (apiError) {
             console.error('[Chatbot] Error sending message via Meta API:', apiError.response ? apiError.response.data : apiError.message);
           }
+        }
+      } else if (messageObj.type === 'interactive' && messageObj.interactive && messageObj.interactive.type === 'nfm_reply') {
+        // Handle Flow Submission
+        try {
+          const responseJson = JSON.parse(messageObj.interactive.nfm_reply.response_json);
+          const { contactName, companyName, city } = responseJson;
+          const senderPhone = messageObj.from;
+
+          console.log(`[Chatbot] Received Flow Submission from ${senderPhone}:`, responseJson);
+
+          // Save to Lead DB
+          const newLead = new Lead({
+            contactName: contactName || 'Unknown',
+            companyName: companyName || '',
+            city: city || 'Unknown',
+            phone: senderPhone
+          });
+          await newLead.save();
+
+          console.log(`[Chatbot] Lead saved successfully for ${senderPhone}.`);
+
+          // Send Thank you message
+          const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
+          if (setting && setting.metaDomain && setting.metaPhoneNumberId && setting.metaChannelToken) {
+            const domain = setting.metaDomain.replace(/\/+$/, '');
+            const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
+            const cleanToken = setting.metaChannelToken.replace(/\s+/g, '');
+            
+            await axios.post(metaApiUrl, {
+              messaging_product: 'whatsapp',
+              to: senderPhone,
+              type: 'text',
+              text: { body: 'Thank you! Your details have been submitted successfully.' }
+            }, {
+              headers: {
+                'Authorization': `Bearer ${cleanToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+          }
+
+        } catch (err) {
+          console.error('[Chatbot] Error processing Flow Submission:', err);
         }
       }
     }

@@ -13,7 +13,8 @@ const SettingSchema = new mongoose.Schema(
     metaWabaId: String,
     metaChannelToken: String,
     metaVerifyToken: String,
-    botKeywords: { type: String, default: 'hi, hello, hey' }
+    botKeywords: { type: String, default: 'hi, hello, hey' },
+    botFlowId: { type: String, default: null }
   },
   { timestamps: true }
 );

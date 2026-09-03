@@ -102,9 +102,11 @@ exports.handleMetaWebhook = async (req, res) => {
           };
 
           try {
+            const cleanToken = config.metaChannelToken.trim();
             await axios.post(metaApiUrl, payload, {
               headers: {
-                'Authorization': `Bearer ${config.metaChannelToken}`,
+                'Authorization': `Bearer ${cleanToken}`,
+                'API-KEY': cleanToken,
                 'Content-Type': 'application/json'
               }
             });

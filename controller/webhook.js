@@ -1,5 +1,6 @@
 const Setting = require('../model/setting');
 const Lead = require('../model/lead');
+const { createLeadService } = require('../service/lead');
 const axios = require('axios');
 
 // In-memory store for chat sessions
@@ -104,13 +105,13 @@ exports.handleMetaWebhook = async (req, res) => {
             
             // Save lead to DB
             try {
-              const newLead = new Lead({
+              const leadData = {
                 contactName: session.contactName,
                 companyName: session.companyName || 'Not Provided',
                 city: session.city,
                 phone: senderPhone
-              });
-              await newLead.save();
+              };
+              await createLeadService(leadData);
               console.log(`[Chatbot] Lead saved successfully for ${senderPhone}.`);
               replyText = `Thank you! Your details have been submitted successfully. Our team will contact you soon.`;
             } catch (err) {

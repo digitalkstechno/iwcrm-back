@@ -102,7 +102,7 @@ exports.handleMetaWebhook = async (req, res) => {
                           flow_id: setting.botFlowId,
                           flow_cta: 'Fill Form',
                           flow_action: 'navigate',
-                          mode: 'published',
+                          mode: 'draft',
                           flow_action_payload: {
                               screen: 'LEAD_FORM'
                           }

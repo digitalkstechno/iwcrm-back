@@ -1,6 +1,7 @@
 const Setting = require('../model/setting');
 const Lead = require('../model/lead');
 const { createLeadService } = require('../service/lead');
+const { generateAIResponse } = require('../service/ai');
 const axios = require('axios');
 
 // In-memory store for chat sessions
@@ -300,6 +301,11 @@ exports.handleMetaWebhook = async (req, res) => {
               }
             }
           });
+        } else if (incomingText) {
+          // If not a keyword and no active session, send it to AI
+          console.log(`[Chatbot] Received general query from ${senderPhone}. Routing to AI...`);
+          const aiResponse = await generateAIResponse(incomingText, customerName);
+          await sendMessage({ type: 'text', text: { body: aiResponse } });
         }
       }
       

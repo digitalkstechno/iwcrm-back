@@ -18,14 +18,15 @@ exports.generateLeadFlow = async (req, res) => {
 
     // 1. Create Flow
     const createFlowUrl = `${domain}/${setting.metaWabaId}/flows`;
-    const createPayload = new URLSearchParams();
-    createPayload.append('name', `lead_form_${Date.now()}`); // Unique name to avoid conflicts
-    createPayload.append('categories', '["LEAD_GENERATION"]');
+    const createPayload = {
+      name: `lead_form_${Date.now()}`,
+      categories: ["LEAD_GENERATION"]
+    };
 
     const createResponse = await axios.post(createFlowUrl, createPayload, {
       headers: {
         'Authorization': `Bearer ${cleanToken}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/json'
       }
     });
 

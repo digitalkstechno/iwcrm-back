@@ -12,7 +12,8 @@ const SettingSchema = new mongoose.Schema(
     metaPhoneNumberId: String,
     metaWabaId: String,
     metaChannelToken: String,
-    metaVerifyToken: String
+    metaVerifyToken: String,
+    botKeywords: { type: String, default: 'hi, hello, hey' }
   },
   { timestamps: true }
 );

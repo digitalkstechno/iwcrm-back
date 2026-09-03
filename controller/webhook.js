@@ -61,19 +61,22 @@ exports.handleMetaWebhook = async (req, res) => {
         const incomingText = messageObj.text.body.trim().toLowerCase();
         const senderPhone = messageObj.from;
 
-        // Check if keyword is Hi, Hello, or Hey
-        if (['hi', 'hello', 'hey'].includes(incomingText)) {
+        // Check keywords from DB
+        const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
+
+        if (!setting || !setting.metaDomain || !setting.metaPhoneNumberId || !setting.metaChannelToken) {
+          console.error('[Chatbot] No valid meta_whatsapp configuration found in database.');
+          return;
+        }
+
+        const keywordsStr = setting.botKeywords || 'hi, hello, hey';
+        const allowedKeywords = keywordsStr.split(',').map(k => k.trim().toLowerCase());
+
+        if (allowedKeywords.includes(incomingText)) {
           console.log(`[Chatbot] Received "${incomingText}" from ${senderPhone}. Replying...`);
 
           // 1. Fetch credentials from Database
-          const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
-
-          if (!setting || !setting.metaDomain || !setting.metaPhoneNumberId || !setting.metaChannelToken) {
-            console.error('[Chatbot] No valid meta_whatsapp configuration found in database.');
-            return;
-          }
-
-          // 2. Prepare Meta API call
+          // Already fetched above
           const domain = setting.metaDomain.replace(/\/+$/, '');
           const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
           const payload = {

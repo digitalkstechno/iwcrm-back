@@ -73,10 +73,21 @@ exports.handleMetaWebhook = async (req, res) => {
       if (value.messages && value.messages[0]) {
         const messageObj = value.messages[0];
       
-      // We only care about text messages for this chatbot
+      // Extract text or interactive list/button responses
+      const senderPhone = messageObj.from;
+      let incomingText = '';
+
       if (messageObj.type === 'text' && messageObj.text && messageObj.text.body) {
-        const incomingText = messageObj.text.body.trim().toLowerCase();
-        const senderPhone = messageObj.from;
+        incomingText = messageObj.text.body.trim().toLowerCase();
+      } else if (messageObj.type === 'interactive' && messageObj.interactive) {
+        if (messageObj.interactive.type === 'list_reply') {
+          incomingText = messageObj.interactive.list_reply.title.trim().toLowerCase();
+        } else if (messageObj.interactive.type === 'button_reply') {
+          incomingText = messageObj.interactive.button_reply.title.trim().toLowerCase();
+        }
+      }
+
+      if (incomingText) {
 
         // Check keywords from DB
         const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
@@ -120,8 +131,28 @@ exports.handleMetaWebhook = async (req, res) => {
             if (['client', 'architect', 'dealer'].includes(incomingText)) {
               session.role = incomingText;
               session.step = 'CLIENT_OPTIONS';
-              replyText = `Please choose an option: Video, Catalog, Price List, or Inquiry.\nVisit our website: www.invisibleworld.in`;
-              await sendMessage({ type: 'text', text: { body: replyText } });
+              await sendMessage({
+                type: 'interactive',
+                interactive: {
+                  type: 'list',
+                  header: { type: 'text', text: 'Invisible World' },
+                  body: { text: 'Please choose an option to continue. Visit our website: www.invisibleworld.in' },
+                  action: {
+                    button: 'Select Option',
+                    sections: [
+                      {
+                        title: 'Available Options',
+                        rows: [
+                          { id: 'opt_video', title: 'Video' },
+                          { id: 'opt_catalog', title: 'Catalog' },
+                          { id: 'opt_price_list', title: 'Price List' },
+                          { id: 'opt_inquiry', title: 'Inquiry' }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              });
             } else {
               replyText = `Please select a valid role: Client, Architect, or Dealer.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
@@ -214,13 +245,23 @@ exports.handleMetaWebhook = async (req, res) => {
 
           // Send initial greeting asking for role
           await sendMessage({
-            type: 'text',
-            text: {
-              body: 'Welcome to Invisible World! Are you a Client, Architect, or Dealer? Please reply with your role.'
+            type: 'interactive',
+            interactive: {
+              type: 'button',
+              body: { text: 'Welcome to Invisible World! Please select your role:' },
+              action: {
+                buttons: [
+                  { type: 'reply', reply: { id: 'role_client', title: 'Client' } },
+                  { type: 'reply', reply: { id: 'role_architect', title: 'Architect' } },
+                  { type: 'reply', reply: { id: 'role_dealer', title: 'Dealer' } }
+                ]
+              }
             }
           });
         }
-      } else if (messageObj.type === 'interactive' && messageObj.interactive && messageObj.interactive.type === 'nfm_reply') {
+      }
+      
+      if (messageObj.type === 'interactive' && messageObj.interactive && messageObj.interactive.type === 'nfm_reply') {
         // Handle Flow Submission
         try {
           const responseJson = JSON.parse(messageObj.interactive.nfm_reply.response_json);

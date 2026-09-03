@@ -8,10 +8,11 @@ const SettingSchema = new mongoose.Schema(
       unique: true,
       default: 'meta_whatsapp'
     },
-    encryptedData: {
-      type: String,
-      required: true
-    }
+    metaDomain: String,
+    metaPhoneNumberId: String,
+    metaWabaId: String,
+    metaChannelToken: String,
+    metaVerifyToken: String
   },
   { timestamps: true }
 );

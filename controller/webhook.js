@@ -1,27 +1,23 @@
-const Setting = require('./setting');
+const Setting = require('../model/setting');
 const axios = require('axios');
-const CryptoJS = require('crypto-js');
 
-// Helper to decrypt config
-const decryptConfig = (encryptedString) => {
-  try {
-    const SECRET_KEY = process.env.CRYPTO_SECRET || process.env.NEXT_PUBLIC_CRYPTO_SECRET || 'fallback-secret-key-kapil-crm-123';
-    const bytes = CryptoJS.AES.decrypt(encryptedString, SECRET_KEY);
-    const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
-    return JSON.parse(decryptedString);
-  } catch (err) {
-    console.error('Failed to decrypt config:', err);
-    return null;
-  }
-};
-
-exports.verifyMetaWebhook = (req, res) => {
+exports.verifyMetaWebhook = async (req, res) => {
   // Parse the query params
   const mode = req.query['hub.mode'] || req.query.mode;
   const token = req.query['hub.verify_token'] || req.query.verify_token;
   const challenge = req.query['hub.challenge'] || req.query.challenge || req.query.challange;
 
-  const verify_token = process.env.META_VERIFY_TOKEN || 'kapil_crm_meta_token';
+  let verify_token = process.env.META_VERIFY_TOKEN || 'kapil_crm_meta_token';
+  
+  // Try to fetch verify token from DB
+  try {
+    const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
+    if (setting && setting.metaVerifyToken) {
+      verify_token = setting.metaVerifyToken;
+    }
+  } catch (err) {
+    console.error('Error fetching verify token from DB', err);
+  }
 
   // If there's a challenge, let's return it. Some testing tools might not send mode/token.
   if (challenge) {
@@ -70,27 +66,16 @@ exports.handleMetaWebhook = async (req, res) => {
           console.log(`[Chatbot] Received "${incomingText}" from ${senderPhone}. Replying...`);
 
           // 1. Fetch credentials from Database
-          // Note: we require the Setting model at the top. Wait, setting is in model/setting.js, not controller!
-          // We must require('../model/setting');
-          const SettingModel = require('../model/setting');
-          const setting = await SettingModel.findOne({ configType: 'meta_whatsapp' });
+          const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
 
-          if (!setting || !setting.encryptedData) {
-            console.error('[Chatbot] No meta_whatsapp configuration found in database.');
+          if (!setting || !setting.metaDomain || !setting.metaPhoneNumberId || !setting.metaChannelToken) {
+            console.error('[Chatbot] No valid meta_whatsapp configuration found in database.');
             return;
           }
 
-          // 2. Decrypt the credentials
-          const config = decryptConfig(setting.encryptedData);
-          if (!config || !config.metaDomain || !config.metaPhoneNumberId || !config.metaChannelToken) {
-            console.error('[Chatbot] Failed to decrypt or missing required Meta API config.');
-            return;
-          }
-
-          // 3. Send the reply via Meta Graph API
-          // metaDomain might already contain the version (e.g., .../api/meta/v19.0)
-          const domain = config.metaDomain.replace(/\/+$/, '');
-          const metaApiUrl = `${domain}/${config.metaPhoneNumberId}/messages`;
+          // 2. Prepare Meta API call
+          const domain = setting.metaDomain.replace(/\/+$/, '');
+          const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
           const payload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
@@ -103,7 +88,7 @@ exports.handleMetaWebhook = async (req, res) => {
 
           try {
             // Remove all spaces and newlines completely from the token
-            const cleanToken = config.metaChannelToken.replace(/\s+/g, '');
+            const cleanToken = setting.metaChannelToken.replace(/\s+/g, '');
             console.log(`[Chatbot] Sending POST to: ${metaApiUrl}`);
             console.log(`[Chatbot] Using Token: ${cleanToken.substring(0, 15)}... (Length: ${cleanToken.length})`);
             

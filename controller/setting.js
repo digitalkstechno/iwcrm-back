@@ -2,17 +2,13 @@ const Setting = require('../model/setting');
 
 exports.saveSettings = async (req, res) => {
   try {
-    const { configType, encryptedData } = req.body;
-    
-    if (!encryptedData) {
-      return res.status(400).json({ status: 'Fail', message: 'Encrypted data is required' });
-    }
+    const { configType, metaDomain, metaPhoneNumberId, metaWabaId, metaChannelToken, metaVerifyToken } = req.body;
 
     const type = configType || 'meta_whatsapp';
 
     const setting = await Setting.findOneAndUpdate(
       { configType: type },
-      { encryptedData },
+      { metaDomain, metaPhoneNumberId, metaWabaId, metaChannelToken, metaVerifyToken },
       { new: true, upsert: true }
     );
 

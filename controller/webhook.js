@@ -1,12 +1,26 @@
-/*  */exports.verifyMetaWebhook = (req, res) => {
+const Setting = require('./setting');
+const axios = require('axios');
+const CryptoJS = require('crypto-js');
+
+// Helper to decrypt config
+const decryptConfig = (encryptedString) => {
+  try {
+    const SECRET_KEY = process.env.CRYPTO_SECRET || process.env.NEXT_PUBLIC_CRYPTO_SECRET || 'fallback-secret-key-kapil-crm-123';
+    const bytes = CryptoJS.AES.decrypt(encryptedString, SECRET_KEY);
+    const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+    return JSON.parse(decryptedString);
+  } catch (err) {
+    console.error('Failed to decrypt config:', err);
+    return null;
+  }
+};
+
+exports.verifyMetaWebhook = (req, res) => {
   // Parse the query params
   const mode = req.query['hub.mode'] || req.query.mode;
   const token = req.query['hub.verify_token'] || req.query.verify_token;
   const challenge = req.query['hub.challenge'] || req.query.challenge || req.query.challange;
 
-  // You can set this as an env variable or fetch from settings
-  // For now we accept 'kapil_crm_secret_token' or any token if we want to be lenient, 
-  // but Meta requires a match. Let's use a hardcoded fallback or what the user provides later.
   const verify_token = process.env.META_VERIFY_TOKEN || 'kapil_crm_meta_token';
 
   // If there's a challenge, let's return it. Some testing tools might not send mode/token.
@@ -29,18 +43,77 @@
   return res.sendStatus(400);
 };
 
-exports.handleMetaWebhook = (req, res) => {
+exports.handleMetaWebhook = async (req, res) => {
   // Meta sends POST request when an event occurs
   const body = req.body;
 
-  console.log('Incoming Meta Webhook:', JSON.stringify(body, null, 2));
-
-  // Check the Incoming webhook message
+  // Return a '200 OK' immediately to prevent Meta from retrying
   if (body.object) {
-    // Return a '200 OK' response to all requests
-    return res.status(200).send('EVENT_RECEIVED');
+    res.status(200).send('EVENT_RECEIVED');
   } else {
-    // Return a '404 Not Found' if event is not from a WhatsApp API
     return res.sendStatus(404);
+  }
+
+  try {
+    // Process the event asynchronously
+    if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.messages && body.entry[0].changes[0].value.messages[0]) {
+      
+      const messageObj = body.entry[0].changes[0].value.messages[0];
+      
+      // We only care about text messages for this chatbot
+      if (messageObj.type === 'text' && messageObj.text && messageObj.text.body) {
+        const incomingText = messageObj.text.body.trim().toLowerCase();
+        const senderPhone = messageObj.from;
+
+        // Check if keyword is Hi, Hello, or Hey
+        if (['hi', 'hello', 'hey'].includes(incomingText)) {
+          console.log(`[Chatbot] Received "${incomingText}" from ${senderPhone}. Replying...`);
+
+          // 1. Fetch credentials from Database
+          // Note: we require the Setting model at the top. Wait, setting is in model/setting.js, not controller!
+          // We must require('../model/setting');
+          const SettingModel = require('../model/setting');
+          const setting = await SettingModel.findOne({ configType: 'meta_whatsapp' });
+
+          if (!setting || !setting.encryptedData) {
+            console.error('[Chatbot] No meta_whatsapp configuration found in database.');
+            return;
+          }
+
+          // 2. Decrypt the credentials
+          const config = decryptConfig(setting.encryptedData);
+          if (!config || !config.metaDomain || !config.metaPhoneNumberId || !config.metaChannelToken) {
+            console.error('[Chatbot] Failed to decrypt or missing required Meta API config.');
+            return;
+          }
+
+          // 3. Send the reply via Meta Graph API
+          const metaApiUrl = `${config.metaDomain}/v20.0/${config.metaPhoneNumberId}/messages`;
+          const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: senderPhone,
+            type: 'text',
+            text: {
+              body: 'welcome to invisible world.'
+            }
+          };
+
+          try {
+            await axios.post(metaApiUrl, payload, {
+              headers: {
+                'Authorization': `Bearer ${config.metaChannelToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            console.log(`[Chatbot] Reply sent successfully to ${senderPhone}.`);
+          } catch (apiError) {
+            console.error('[Chatbot] Error sending message via Meta API:', apiError.response ? apiError.response.data : apiError.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Chatbot] Webhook processing error:', err);
   }
 };

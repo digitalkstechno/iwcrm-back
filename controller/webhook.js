@@ -132,8 +132,8 @@ exports.handleMetaWebhook = async (req, res) => {
         if (session) {
           let replyText = '';
           if (session.step === 'ROLE_SELECTION') {
-            if (incomingText === 'client') {
-              session.role = incomingText;
+            if (incomingText === 'personal use' || incomingText === 'client') {
+              session.role = 'Personal Use';
               session.step = 'CLIENT_OPTIONS';
               await sendMessage({
                 type: 'interactive',
@@ -171,7 +171,7 @@ exports.handleMetaWebhook = async (req, res) => {
               replyText = `Please reply with your *Full Name*.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
             } else {
-              replyText = `Please select a valid role: Client, Architect, or Dealer.`;
+              replyText = `Please select a valid role: Personal Use, Architect, or Dealer.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
             }
           } else if (session.step === 'DEALER_OPTIONS') {
@@ -293,7 +293,7 @@ exports.handleMetaWebhook = async (req, res) => {
               body: { text: `${greeting} ${customerName}!\nWelcome to Invisible World! Please select your role:` },
               action: {
                 buttons: [
-                  { type: 'reply', reply: { id: 'role_client', title: 'Client' } },
+                  { type: 'reply', reply: { id: 'role_client', title: 'Personal Use' } },
                   { type: 'reply', reply: { id: 'role_architect', title: 'Architect' } },
                   { type: 'reply', reply: { id: 'role_dealer', title: 'Dealer' } }
                 ]

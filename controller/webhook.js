@@ -102,11 +102,14 @@ exports.handleMetaWebhook = async (req, res) => {
           };
 
           try {
-            const cleanToken = config.metaChannelToken.trim();
+            // Remove all spaces and newlines completely from the token
+            const cleanToken = config.metaChannelToken.replace(/\s+/g, '');
+            console.log(`[Chatbot] Sending POST to: ${metaApiUrl}`);
+            console.log(`[Chatbot] Using Token: ${cleanToken.substring(0, 15)}... (Length: ${cleanToken.length})`);
+            
             await axios.post(metaApiUrl, payload, {
               headers: {
                 'Authorization': `Bearer ${cleanToken}`,
-                'API-KEY': cleanToken,
                 'Content-Type': 'application/json'
               }
             });

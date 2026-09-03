@@ -56,9 +56,21 @@ exports.handleMetaWebhook = async (req, res) => {
 
   try {
     // Process the event asynchronously
-    if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.messages && body.entry[0].changes[0].value.messages[0]) {
-      
-      const messageObj = body.entry[0].changes[0].value.messages[0];
+    if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value) {
+      const value = body.entry[0].changes[0].value;
+
+      // Log status updates (sent, delivered, read, failed)
+      if (value.statuses && value.statuses.length > 0) {
+        const statusObj = value.statuses[0];
+        if (statusObj.status === 'failed') {
+          console.error(`[Chatbot Webhook] Message FAILED for ${statusObj.recipient_id}. Reason:`, JSON.stringify(statusObj.errors, null, 2));
+        } else {
+          console.log(`[Chatbot Webhook] Message status: ${statusObj.status} for ${statusObj.recipient_id}`);
+        }
+      }
+
+      if (value.messages && value.messages[0]) {
+        const messageObj = value.messages[0];
       
       // We only care about text messages for this chatbot
       if (messageObj.type === 'text' && messageObj.text && messageObj.text.body) {
@@ -182,6 +194,7 @@ exports.handleMetaWebhook = async (req, res) => {
 
         } catch (err) {
           console.error('[Chatbot] Error processing Flow Submission:', err);
+        }
         }
       }
     }

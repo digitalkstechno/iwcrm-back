@@ -88,7 +88,9 @@ exports.handleMetaWebhook = async (req, res) => {
           }
 
           // 3. Send the reply via Meta Graph API
-          const metaApiUrl = `${config.metaDomain}/v20.0/${config.metaPhoneNumberId}/messages`;
+          // metaDomain might already contain the version (e.g., .../api/meta/v19.0)
+          const domain = config.metaDomain.replace(/\/+$/, '');
+          const metaApiUrl = `${domain}/${config.metaPhoneNumberId}/messages`;
           const payload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',

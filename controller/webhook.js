@@ -76,6 +76,10 @@ exports.handleMetaWebhook = async (req, res) => {
       // Extract text or interactive list/button responses
       const senderPhone = messageObj.from;
       let incomingText = '';
+      let customerName = 'there';
+      if (value.contacts && value.contacts[0] && value.contacts[0].profile && value.contacts[0].profile.name) {
+        customerName = value.contacts[0].profile.name;
+      }
 
       if (messageObj.type === 'text' && messageObj.text && messageObj.text.body) {
         incomingText = messageObj.text.body.trim().toLowerCase();
@@ -276,12 +280,21 @@ exports.handleMetaWebhook = async (req, res) => {
             await sendMessage({ type: 'video', video: { link: url } });
           }
 
+          // Determine time of day in IST (UTC+5:30)
+          const istOffset = 5.5 * 60 * 60 * 1000;
+          const currentIST = new Date(Date.now() + istOffset);
+          const hour = currentIST.getUTCHours();
+          
+          let greeting = 'Good evening';
+          if (hour >= 5 && hour < 12) greeting = 'Good morning';
+          else if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+
           // Send initial greeting asking for role
           await sendMessage({
             type: 'interactive',
             interactive: {
               type: 'button',
-              body: { text: 'Welcome to Invisible World! Please select your role:' },
+              body: { text: `${greeting} ${customerName}!\nWelcome to Invisible World! Please select your role:` },
               action: {
                 buttons: [
                   { type: 'reply', reply: { id: 'role_client', title: 'Client' } },

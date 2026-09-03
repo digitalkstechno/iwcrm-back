@@ -138,20 +138,13 @@ exports.handleMetaWebhook = async (req, res) => {
               await sendMessage({
                 type: 'interactive',
                 interactive: {
-                  type: 'list',
-                  header: { type: 'text', text: 'Invisible World' },
-                  body: { text: 'Please choose an option to continue. Visit our website: www.invisibleworld.in' },
+                  type: 'button',
+                  body: { text: 'Please choose an option to continue.\nVisit our website: www.invisibleworld.in' },
                   action: {
-                    button: 'Select Option',
-                    sections: [
-                      {
-                        title: 'Available Options',
-                        rows: [
-                          { id: 'opt_catalog', title: 'Catalog' },
-                          { id: 'opt_price_list', title: 'Price List' },
-                          { id: 'opt_inquiry', title: 'Inquiry' }
-                        ]
-                      }
+                    buttons: [
+                      { type: 'reply', reply: { id: 'opt_catalog', title: 'Catalog' } },
+                      { type: 'reply', reply: { id: 'opt_price_list', title: 'Price List' } },
+                      { type: 'reply', reply: { id: 'opt_inquiry', title: 'Inquiry' } }
                     ]
                   }
                 }
@@ -279,6 +272,9 @@ exports.handleMetaWebhook = async (req, res) => {
           for (const url of videos) {
             await sendMessage({ type: 'video', video: { link: url } });
           }
+
+          // Delay for 2 seconds to ensure videos process and render first on WhatsApp
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Determine time of day in IST (UTC+5:30)
           const istOffset = 5.5 * 60 * 60 * 1000;

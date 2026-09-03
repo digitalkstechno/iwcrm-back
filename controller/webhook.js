@@ -86,33 +86,109 @@ exports.handleMetaWebhook = async (req, res) => {
           return;
         }
 
+        // Helper function to send messages
+        const sendMessage = async (messagePayload) => {
+          const domain = setting.metaDomain.replace(/\/+$/, '');
+          const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
+          const cleanToken = setting.metaChannelToken.replace(/\s+/g, '');
+          
+          try {
+            await axios.post(metaApiUrl, {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: senderPhone,
+              ...messagePayload
+            }, {
+              headers: {
+                'Authorization': `Bearer ${cleanToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+          } catch (apiError) {
+            console.error('[Chatbot] Error sending message via Meta API:', apiError.response ? apiError.response.data : apiError.message);
+          }
+        };
+
+        const contactMsg = "If you’re interested in doing business with us, please share your visiting card or a short video of your showroom with us.";
+
         // Check if user is in an active session
         let session = chatSessions.get(senderPhone);
 
         if (session) {
-          // User is in the middle of lead creation
           let replyText = '';
-          if (session.step === 'NAME') {
+          if (session.step === 'ROLE_SELECTION') {
+            if (['client', 'architect', 'dealer'].includes(incomingText)) {
+              session.role = incomingText;
+              session.step = 'CLIENT_OPTIONS';
+              replyText = `Please choose an option: Video, Catalog, Price List, or Inquiry.\nVisit our website: www.invisibleworld.in`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+            } else {
+              replyText = `Please select a valid role: Client, Architect, or Dealer.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+            }
+          } else if (session.step === 'CLIENT_OPTIONS') {
+            if (incomingText === 'video') {
+              const videos = [
+                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ac1c2641-cd57-4232-a610-fef22edcde27.mp4",
+                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/5b4faa60-2a85-4000-add3-4cdd1eec1eed.mp4",
+                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/c0a3b6f1-0bf1-4b0a-81c4-883d1651cca1.mp4"
+              ];
+              for (const url of videos) {
+                await sendMessage({ type: 'video', video: { link: url } });
+              }
+              await sendMessage({ type: 'text', text: { body: contactMsg } });
+              chatSessions.delete(senderPhone);
+            } else if (incomingText === 'catalog') {
+              await sendMessage({ type: 'document', document: { link: "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/3a73db26-014c-4a81-888b-31a9e4b96fc7.pdf", filename: "Catalog.pdf" } });
+              await sendMessage({ type: 'text', text: { body: contactMsg } });
+              chatSessions.delete(senderPhone);
+            } else if (incomingText === 'price list') {
+              const images = [
+                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ae65cd31-852c-48f9-bb6f-cbec7e1ad139.jpg",
+                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/d7601098-de22-4985-9c01-96d4335ccf87.jpg"
+              ];
+              for (const url of images) {
+                await sendMessage({ type: 'image', image: { link: url } });
+              }
+              await sendMessage({ type: 'text', text: { body: contactMsg } });
+              chatSessions.delete(senderPhone);
+            } else if (incomingText === 'inquiry') {
+              session.step = 'NAME';
+              replyText = `Please reply with your *Full Name*.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+            } else {
+              replyText = `Please choose a valid option: Video, Catalog, Price List, or Inquiry.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
+            }
+          } else if (session.step === 'NAME') {
             session.contactName = incomingText;
             session.step = 'COMPANY';
             replyText = `Thank you, ${incomingText}. Now, please reply with your *Company Name* (or type 'skip').`;
+            await sendMessage({ type: 'text', text: { body: replyText } });
           } else if (session.step === 'COMPANY') {
             session.companyName = incomingText.toLowerCase() === 'skip' ? '' : incomingText;
             session.step = 'CITY';
             replyText = `Got it. Lastly, please reply with your *City*.`;
+            await sendMessage({ type: 'text', text: { body: replyText } });
           } else if (session.step === 'CITY') {
             session.city = incomingText;
             
             // Save lead to DB
             try {
+              // Strip 91 from beginning of phone number if present and length > 10
+              let processedPhone = senderPhone;
+              if (processedPhone.startsWith('91') && processedPhone.length > 10) {
+                processedPhone = processedPhone.substring(2);
+              }
+              
               const leadData = {
                 contactName: session.contactName,
                 companyName: session.companyName || 'Not Provided',
                 city: session.city,
-                phone: senderPhone
+                phone: processedPhone
               };
               await createLeadService(leadData);
-              console.log(`[Chatbot] Lead saved successfully for ${senderPhone}.`);
+              console.log(`[Chatbot] Lead saved successfully for ${processedPhone}.`);
               replyText = `Thank you! Your details have been submitted successfully. Our team will contact you soon.`;
             } catch (err) {
               console.error('[Chatbot] Error saving lead:', err);
@@ -121,25 +197,8 @@ exports.handleMetaWebhook = async (req, res) => {
 
             // Clear session
             chatSessions.delete(senderPhone);
+            await sendMessage({ type: 'text', text: { body: replyText } });
           }
-
-          // Send reply
-          const domain = setting.metaDomain.replace(/\/+$/, '');
-          const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
-          const cleanToken = setting.metaChannelToken.replace(/\s+/g, '');
-          
-          await axios.post(metaApiUrl, {
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: senderPhone,
-            type: 'text',
-            text: { body: replyText }
-          }, {
-            headers: {
-              'Authorization': `Bearer ${cleanToken}`,
-              'Content-Type': 'application/json'
-            }
-          });
 
           return res.status(200).send('EVENT_RECEIVED');
         }
@@ -151,35 +210,15 @@ exports.handleMetaWebhook = async (req, res) => {
           console.log(`[Chatbot] Received "${incomingText}" from ${senderPhone}. Starting conversation...`);
 
           // Start a new session
-          chatSessions.set(senderPhone, { step: 'NAME' });
+          chatSessions.set(senderPhone, { step: 'ROLE_SELECTION' });
 
-          const domain = setting.metaDomain.replace(/\/+$/, '');
-          const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
-          const cleanToken = setting.metaChannelToken.replace(/\s+/g, '');
-
-          // Send initial greeting asking for name
-          const payload = {
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: senderPhone,
+          // Send initial greeting asking for role
+          await sendMessage({
             type: 'text',
             text: {
-              body: 'Welcome to Invisible World! To assist you better, please reply with your *Full Name*.'
+              body: 'Welcome to Invisible World! Are you a Client, Architect, or Dealer? Please reply with your role.'
             }
-          };
-
-          try {
-            console.log(`[Chatbot] Sending POST to: ${metaApiUrl}`);
-            await axios.post(metaApiUrl, payload, {
-              headers: {
-                'Authorization': `Bearer ${cleanToken}`,
-                'Content-Type': 'application/json'
-              }
-            });
-            console.log(`[Chatbot] Reply sent successfully to ${senderPhone}.`);
-          } catch (apiError) {
-            console.error('[Chatbot] Error sending message via Meta API:', apiError.response ? apiError.response.data : apiError.message);
-          }
+          });
         }
       } else if (messageObj.type === 'interactive' && messageObj.interactive && messageObj.interactive.type === 'nfm_reply') {
         // Handle Flow Submission

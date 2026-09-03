@@ -45,7 +45,7 @@ exports.generateAIResponse = async (userMessage, customerName = 'Customer') => {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `[Customer Name: ${customerName}]\nCustomer says: ${userMessage}` }

@@ -143,7 +143,6 @@ exports.handleMetaWebhook = async (req, res) => {
                       {
                         title: 'Available Options',
                         rows: [
-                          { id: 'opt_video', title: 'Video' },
                           { id: 'opt_catalog', title: 'Catalog' },
                           { id: 'opt_price_list', title: 'Price List' },
                           { id: 'opt_inquiry', title: 'Inquiry' }
@@ -192,18 +191,7 @@ exports.handleMetaWebhook = async (req, res) => {
               await sendMessage({ type: 'text', text: { body: replyText } });
             }
           } else if (session.step === 'CLIENT_OPTIONS') {
-            if (incomingText === 'video') {
-              const videos = [
-                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ac1c2641-cd57-4232-a610-fef22edcde27.mp4",
-                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/5b4faa60-2a85-4000-add3-4cdd1eec1eed.mp4",
-                "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/c0a3b6f1-0bf1-4b0a-81c4-883d1651cca1.mp4"
-              ];
-              for (const url of videos) {
-                await sendMessage({ type: 'video', video: { link: url } });
-              }
-              await sendMessage({ type: 'text', text: { body: contactMsg } });
-              chatSessions.delete(senderPhone);
-            } else if (incomingText === 'catalog') {
+            if (incomingText === 'catalog') {
               await sendMessage({ type: 'document', document: { link: "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/3a73db26-014c-4a81-888b-31a9e4b96fc7.pdf", filename: "Catalog.pdf" } });
               await sendMessage({ type: 'text', text: { body: contactMsg } });
               chatSessions.delete(senderPhone);
@@ -277,6 +265,16 @@ exports.handleMetaWebhook = async (req, res) => {
 
           // Start a new session
           chatSessions.set(senderPhone, { step: 'ROLE_SELECTION' });
+
+          // Send welcome videos first
+          const videos = [
+            "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ac1c2641-cd57-4232-a610-fef22edcde27.mp4",
+            "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/5b4faa60-2a85-4000-add3-4cdd1eec1eed.mp4",
+            "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/c0a3b6f1-0bf1-4b0a-81c4-883d1651cca1.mp4"
+          ];
+          for (const url of videos) {
+            await sendMessage({ type: 'video', video: { link: url } });
+          }
 
           // Send initial greeting asking for role
           await sendMessage({

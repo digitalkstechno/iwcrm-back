@@ -1,5 +1,7 @@
 const LEAD = require("../model/lead");
 const DEALER = require("../model/dealer");
+const SETTING = require("../model/setting");
+const axios = require("axios");
 
 const getLevenshteinDistance = (a, b) => {
   const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
@@ -62,6 +64,43 @@ exports.createLeadService = async (data) => {
   }
 
   const leadDetails = await LEAD.create(data);
+
+  // Send WhatsApp Notification to Dealer if assigned
+  if (leadDetails.dealer) {
+    try {
+      const dealerData = await DEALER.findById(leadDetails.dealer);
+      const setting = await SETTING.findOne({ configType: 'meta_whatsapp' });
+      
+      if (dealerData && dealerData.Phone && setting && setting.metaDomain && setting.metaPhoneNumberId && setting.metaChannelToken) {
+        // Format Dealer Phone (assume it might not have country code, add 91 if length is 10)
+        let dealerPhone = dealerData.Phone.replace(/\D/g, '');
+        if (dealerPhone.length === 10) dealerPhone = '91' + dealerPhone;
+
+        const domain = setting.metaDomain.replace(/\/+$/, '');
+        const metaApiUrl = `${domain}/${setting.metaPhoneNumberId}/messages`;
+        const cleanToken = setting.metaChannelToken.replace(/\s+/g, '');
+
+        const messageText = `🚨 *New Lead Assigned!*\n\nHi ${dealerData.DealerName},\nA new lead has been assigned to you.\n\n👤 *Name:* ${leadDetails.contactName}\n🏢 *Company:* ${leadDetails.companyName || 'N/A'}\n📍 *City:* ${leadDetails.city}\n📞 *Phone:* ${leadDetails.phone}\n\nPlease follow up ASAP!`;
+
+        await axios.post(metaApiUrl, {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: dealerPhone,
+          type: 'text',
+          text: { body: messageText }
+        }, {
+          headers: {
+            'Authorization': `Bearer ${cleanToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log(`[Notification] Dealer ${dealerData.DealerName} notified via WhatsApp.`);
+      }
+    } catch (err) {
+      console.error('[Notification] Error sending dealer WhatsApp notification:', err.message);
+    }
+  }
+
   return leadDetails;
 };
 

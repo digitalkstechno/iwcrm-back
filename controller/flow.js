@@ -37,15 +37,11 @@ exports.generateLeadFlow = async (req, res) => {
 
     // 2. Upload Flow JSON Asset
     const flowJson = {
-      "version": "3.1",
-      "data_api_version": "3.0",
-      "routing_model": {
-        "LEAD_FORM": []
-      },
+      "version": "2.1",
       "screens": [
         {
           "id": "LEAD_FORM",
-          "title": "Contact Details",
+          "title": "Lead Registration",
           "data": {},
           "layout": {
             "type": "SingleColumnLayout",

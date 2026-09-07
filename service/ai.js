@@ -39,7 +39,7 @@ exports.generateAIResponse = async (userMessage, customerName = 'Customer') => {
     const groqApiKey = process.env.GROQ_API_KEY;
     if (!groqApiKey) {
       console.error("[AI Service] Missing GROQ_API_KEY in environment variables.");
-      return "I'm sorry, my AI features are currently unavailable. Please contact us directly at +91 98984 24967.";
+      // return "I'm sorry, my AI features are currently unavailable. Please contact us directly at +91 98984 24967.";
     }
 
     const response = await axios.post(

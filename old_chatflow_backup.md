@@ -1,3 +1,4 @@
+```javascript
 const Setting = require('../model/setting');
 const Lead = require('../model/lead');
 const { createLeadService } = require('../service/lead');
@@ -90,8 +91,6 @@ exports.handleMetaWebhook = async (req, res) => {
         } else if (messageObj.interactive.type === 'button_reply') {
           incomingText = messageObj.interactive.button_reply.title.trim().toLowerCase();
         }
-      } else if (['image', 'video', 'document', 'contacts', 'audio', 'location'].includes(messageObj.type)) {
-        incomingText = 'media_attachment';
       }
 
       if (incomingText) {
@@ -179,77 +178,15 @@ exports.handleMetaWebhook = async (req, res) => {
             }
           } else if (session.step === 'DEALER_OPTIONS') {
             if (incomingText === 'showroom') {
-              replyText = `Please send your showroom details:\n\n📹 Showroom Video\n🪪 Visiting Card`;
+              replyText = `Please share a short video of your showroom and your visiting card with us.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
-              
-              session.step = 'WAIT_SHOWROOM_DETAILS';
-              session.timer = setTimeout(async () => {
-                 const currentSession = chatSessions.get(senderPhone);
-                 if (currentSession && currentSession.step === 'WAIT_SHOWROOM_DETAILS') {
-                    // Send reminder
-                    await sendMessage({ type: 'text', text: { body: "📹 Please share your showroom video.\n\nYou can simply record a short video of your showroom and send it here." } });
-                    // Ask question
-                    await sendMessage({
-                      type: 'interactive',
-                      interactive: {
-                        type: 'button',
-                        body: { text: 'Do you need the product for personal use?' },
-                        action: {
-                          buttons: [
-                            { type: 'reply', reply: { id: 'rem_personal_yes', title: 'Yes' } },
-                            { type: 'reply', reply: { id: 'rem_personal_no', title: 'No' } }
-                          ]
-                        }
-                      }
-                    });
-                    currentSession.step = 'REMINDER_PERSONAL_USE';
-                 }
-              }, 10000); // 10 seconds wait
+              chatSessions.delete(senderPhone);
             } else if (incomingText === 'personal use') {
               session.step = 'NAME';
               replyText = `Please reply with your *Full Name*.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
             } else {
               replyText = `Please select a valid option: Showroom or Personal Use.`;
-              await sendMessage({ type: 'text', text: { body: replyText } });
-            }
-          } else if (session.step === 'WAIT_SHOWROOM_DETAILS') {
-            if (session.timer) clearTimeout(session.timer);
-            replyText = `Thank you! Our team will review your showroom details and get back to you shortly.`;
-            await sendMessage({ type: 'text', text: { body: replyText } });
-            chatSessions.delete(senderPhone);
-          } else if (session.step === 'REMINDER_PERSONAL_USE') {
-            if (incomingText === 'yes') {
-              replyText = `Thank you! 👍\n\nPlease share your requirement details with us, and our team will contact you shortly.`;
-              await sendMessage({ type: 'text', text: { body: replyText } });
-              
-              // Create Inquiry Lead
-              try {
-                let processedPhone = senderPhone;
-                if (processedPhone.startsWith('91') && processedPhone.length > 10) {
-                  processedPhone = processedPhone.substring(2);
-                }
-                const leadData = {
-                  contactName: customerName || 'Not Provided',
-                  companyName: 'Not Provided',
-                  city: 'Not Provided',
-                  phone: processedPhone,
-                  role: 'Personal Use',
-                  source: 'WhatsApp',
-                  status: 'New'
-                };
-                await createLeadService(leadData);
-                console.log(`[Chatbot] Inquiry Lead saved successfully for ${processedPhone}.`);
-              } catch (err) {
-                console.error('[Chatbot] Error saving lead:', err);
-              }
-              chatSessions.delete(senderPhone);
-            } else if (incomingText === 'no') {
-              replyText = `Please send your showroom details:\n\n📹 Showroom Video\n🪪 Visiting Card\n\nOur team will review your showroom details and get back to you shortly.`;
-              await sendMessage({ type: 'text', text: { body: replyText } });
-              chatSessions.delete(senderPhone);
-            } else {
-              replyText = `Please select Yes or No.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
             }
           } else if (session.step === 'CLIENT_OPTIONS') {
@@ -423,3 +360,4 @@ exports.handleMetaWebhook = async (req, res) => {
     console.error('[Chatbot] Webhook processing error:', err);
   }
 };
+```

@@ -179,15 +179,13 @@ exports.handleMetaWebhook = async (req, res) => {
               }
             } else if (session.step === 'DEALER_OPTIONS') {
               if (incomingText === 'showroom') {
-                replyText = `Please send your showroom details.\n\n📹 Showroom Video\n🪪 Visiting Card\n\nPlease send both files here.`;
+                replyText = `Please send your showroom details.\n\n📹 Showroom Video\n🪪 Visiting Card`;
                 await sendMessage({ type: 'text', text: { body: replyText } });
 
                 session.step = 'WAIT_SHOWROOM_DETAILS';
                 session.timer = setTimeout(async () => {
                   const currentSession = chatSessions.get(senderPhone);
                   if (currentSession && currentSession.step === 'WAIT_SHOWROOM_DETAILS') {
-                    // Send reminder
-                    await sendMessage({ type: 'text', text: { body: "📹 Please share your showroom video and visiting card with us.\n\nYou can simply record a short video of your showroom and send it here." } });
                     
                     // Send the 3 videos
                     const videos = [
@@ -256,9 +254,26 @@ exports.handleMetaWebhook = async (req, res) => {
                 replyText = `Please reply with your *City*.`;
                 await sendMessage({ type: 'text', text: { body: replyText } });
               } else if (incomingText === 'no') {
-                // CONTINUE BUSINESS / DEALER FLOW -> END
-                replyText = `Thank you. Our team will review your showroom details and get back to you shortly.`;
+                await sendMessage({
+                  type: 'interactive',
+                  interactive: {
+                    type: 'button',
+                    body: { text: 'aap invisible world ki dushri product visit karna chaohoge ?' },
+                    action: {
+                      buttons: [
+                        { type: 'reply', reply: { id: 'other_product_yes', title: 'Yes' } },
+                        { type: 'reply', reply: { id: 'other_product_no', title: 'No' } }
+                      ]
+                    }
+                  }
+                });
+                session.step = 'VISIT_OTHER_PRODUCT';
+              } else {
+                replyText = `Please select Yes or No.`;
                 await sendMessage({ type: 'text', text: { body: replyText } });
+              }
+            } else if (session.step === 'VISIT_OTHER_PRODUCT') {
+              if (incomingText === 'yes' || incomingText === 'no') {
                 chatSessions.delete(senderPhone);
               } else {
                 replyText = `Please select Yes or No.`;
@@ -366,15 +381,13 @@ exports.handleMetaWebhook = async (req, res) => {
             // Start a new session directly into WAIT_SHOWROOM_DETAILS
             chatSessions.set(senderPhone, { step: 'WAIT_SHOWROOM_DETAILS' });
 
-            let replyText = `Please send your showroom details.\n\n📹 Showroom Video\n🪪 Visiting Card\n\nPlease send both files here.`;
+            let replyText = `Please send your showroom details.\n\n📹 Showroom Video\n🪪 Visiting Card`;
             await sendMessage({ type: 'text', text: { body: replyText } });
 
             const currentSession = chatSessions.get(senderPhone);
             currentSession.timer = setTimeout(async () => {
               const checkSession = chatSessions.get(senderPhone);
               if (checkSession && checkSession.step === 'WAIT_SHOWROOM_DETAILS') {
-                // Send reminder
-                await sendMessage({ type: 'text', text: { body: "📹 Please share your showroom video and visiting card with us.\n\nYou can simply record a short video of your showroom and send it here." } });
                 
                 // Send the 3 videos
                 const videos = [

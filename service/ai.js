@@ -36,10 +36,15 @@ Instructions:
 
 exports.generateAIResponse = async (userMessage, customerName = 'Customer') => {
   try {
+    if (process.env.AI_FLOW_ENABLED !== 'true') {
+      console.log("[AI Service] AI flow is disabled via AI_FLOW_ENABLED in .env");
+      return;
+    }
+
     const groqApiKey = process.env.GROQ_API_KEY;
     if (!groqApiKey) {
       console.error("[AI Service] Missing GROQ_API_KEY in environment variables.");
-      // return "I'm sorry, my AI features are currently unavailable. Please contact us directly at +91 98984 24967.";
+      return "I'm sorry, my AI features are currently unavailable. Please contact us directly at +91 98984 24967.";
     }
 
     const response = await axios.post(
@@ -67,6 +72,6 @@ exports.generateAIResponse = async (userMessage, customerName = 'Customer') => {
     if (error.response && error.response.data) {
       console.error("[AI Service] Groq API Response Error:", error.response.data);
     }
-    // return "I'm sorry, I couldn't process your request right now. Please try again later or contact +91 98984 24967.";
+    return "I'm sorry, I couldn't process your request right now. Please try again later or contact +91 98984 24967.";
   }
 };

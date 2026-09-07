@@ -6,6 +6,7 @@ const axios = require('axios');
 
 // In-memory store for chat sessions
 const chatSessions = new Map();
+const inactivityTimers = new Map();
 
 exports.verifyMetaWebhook = async (req, res) => {
   // Parse the query params
@@ -95,6 +96,41 @@ exports.handleMetaWebhook = async (req, res) => {
         }
 
         if (incomingText) {
+          if (inactivityTimers.has(senderPhone)) {
+            clearTimeout(inactivityTimers.get(senderPhone));
+          }
+
+          const timerId = setTimeout(async () => {
+            inactivityTimers.delete(senderPhone);
+            const currentSetting = await Setting.findOne({ configType: 'meta_whatsapp' });
+            if (currentSetting && currentSetting.metaDomain && currentSetting.metaPhoneNumberId && currentSetting.metaChannelToken) {
+              const domain = currentSetting.metaDomain.replace(/\/+$/, '');
+              const metaApiUrl = `${domain}/${currentSetting.metaPhoneNumberId}/messages`;
+              const cleanToken = currentSetting.metaChannelToken.replace(/\s+/g, '');
+              try {
+                await axios.post(metaApiUrl, {
+                  messaging_product: 'whatsapp',
+                  recipient_type: 'individual',
+                  to: senderPhone,
+                  type: 'interactive',
+                  interactive: {
+                    type: 'button',
+                    body: { text: 'Appko invisible fan ke bare me mahiti hai ?' },
+                    action: {
+                      buttons: [
+                        { type: 'reply', reply: { id: 'inv_fan_yes', title: 'Yes' } },
+                        { type: 'reply', reply: { id: 'inv_fan_no', title: 'No' } }
+                      ]
+                    }
+                  }
+                }, { headers: { 'Authorization': `Bearer ${cleanToken}`, 'Content-Type': 'application/json' }});
+                const s = chatSessions.get(senderPhone) || {};
+                s.step = 'INVISIBLE_FAN_PROMO';
+                chatSessions.set(senderPhone, s);
+              } catch (e) { console.error('[Chatbot] Error sending promo:', e.message); }
+            }
+          }, 3600000); // 1 hour
+          inactivityTimers.set(senderPhone, timerId);
 
           // Check keywords from DB
           const setting = await Setting.findOne({ configType: 'meta_whatsapp' });
@@ -258,7 +294,7 @@ exports.handleMetaWebhook = async (req, res) => {
                   type: 'interactive',
                   interactive: {
                     type: 'button',
-                    body: { text: 'aap invisible world ki dushri product visit karna chaohoge ?' },
+                    body: { text: 'Aap invisible world ki dushri product visit karna chaohoge ?' },
                     action: {
                       buttons: [
                         { type: 'reply', reply: { id: 'other_product_yes', title: 'Yes' } },
@@ -273,6 +309,13 @@ exports.handleMetaWebhook = async (req, res) => {
                 await sendMessage({ type: 'text', text: { body: replyText } });
               }
             } else if (session.step === 'VISIT_OTHER_PRODUCT') {
+              if (incomingText === 'yes' || incomingText === 'no') {
+                chatSessions.delete(senderPhone);
+              } else {
+                replyText = `Please select Yes or No.`;
+                await sendMessage({ type: 'text', text: { body: replyText } });
+              }
+            } else if (session.step === 'INVISIBLE_FAN_PROMO') {
               if (incomingText === 'yes' || incomingText === 'no') {
                 chatSessions.delete(senderPhone);
               } else {

@@ -67,6 +67,6 @@ exports.generateAIResponse = async (userMessage, customerName = 'Customer') => {
     if (error.response && error.response.data) {
       console.error("[AI Service] Groq API Response Error:", error.response.data);
     }
-    return "I'm sorry, I couldn't process your request right now. Please try again later or contact +91 98984 24967.";
+    // return "I'm sorry, I couldn't process your request right now. Please try again later or contact +91 98984 24967.";
   }
 };

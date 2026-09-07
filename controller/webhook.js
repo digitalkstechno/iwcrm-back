@@ -338,46 +338,35 @@ exports.handleMetaWebhook = async (req, res) => {
         if (allowedKeywords.includes(incomingText)) {
           console.log(`[Chatbot] Received "${incomingText}" from ${senderPhone}. Starting conversation...`);
 
-          // Start a new session
-          chatSessions.set(senderPhone, { step: 'ROLE_SELECTION' });
+          // Start a new session directly into WAIT_SHOWROOM_DETAILS
+          chatSessions.set(senderPhone, { step: 'WAIT_SHOWROOM_DETAILS' });
 
-          // Send welcome videos first
-          const videos = [
-            "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ac1c2641-cd57-4232-a610-fef22edcde27.mp4",
-            "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/5b4faa60-2a85-4000-add3-4cdd1eec1eed.mp4",
-            "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/c0a3b6f1-0bf1-4b0a-81c4-883d1651cca1.mp4"
-          ];
-          for (const url of videos) {
-            await sendMessage({ type: 'video', video: { link: url } });
-          }
-
-          // Delay for 2 seconds to ensure videos process and render first on WhatsApp
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          // Determine time of day in IST (UTC+5:30)
-          const istOffset = 5.5 * 60 * 60 * 1000;
-          const currentIST = new Date(Date.now() + istOffset);
-          const hour = currentIST.getUTCHours();
+          let replyText = `Please send your showroom details.\n\n📹 Showroom Video\n🪪 Visiting Card\n\nPlease send both files here.`;
+          await sendMessage({ type: 'text', text: { body: replyText } });
           
-          let greeting = 'Good evening';
-          if (hour >= 5 && hour < 12) greeting = 'Good morning';
-          else if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
-
-          // Send initial greeting asking for role
-          await sendMessage({
-            type: 'interactive',
-            interactive: {
-              type: 'button',
-              body: { text: `${greeting} ${customerName}!\nWelcome to Invisible World! Please select your role:` },
-              action: {
-                buttons: [
-                  { type: 'reply', reply: { id: 'role_client', title: 'Personal Use' } },
-                  { type: 'reply', reply: { id: 'role_architect', title: 'Architect' } },
-                  { type: 'reply', reply: { id: 'role_dealer', title: 'Dealer' } }
-                ]
-              }
-            }
-          });
+          const currentSession = chatSessions.get(senderPhone);
+          currentSession.timer = setTimeout(async () => {
+             const checkSession = chatSessions.get(senderPhone);
+             if (checkSession && checkSession.step === 'WAIT_SHOWROOM_DETAILS') {
+                // Send reminder
+                await sendMessage({ type: 'text', text: { body: "📹 Please share your showroom video and visiting card with us.\n\nYou can simply record a short video of your showroom and send it here." } });
+                // Ask question
+                await sendMessage({
+                  type: 'interactive',
+                  interactive: {
+                    type: 'button',
+                    body: { text: 'Do you need the product for personal use?' },
+                    action: {
+                      buttons: [
+                        { type: 'reply', reply: { id: 'rem_personal_yes', title: 'Yes' } },
+                        { type: 'reply', reply: { id: 'rem_personal_no', title: 'No' } }
+                      ]
+                    }
+                  }
+                });
+                checkSession.step = 'REMINDER_PERSONAL_USE';
+             }
+          }, 10000); // 10 seconds wait
         } else if (incomingText) {
           // If not a keyword and no active session, send it to AI
           console.log(`[Chatbot] Received general query from ${senderPhone}. Routing to AI...`);

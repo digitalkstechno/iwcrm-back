@@ -179,7 +179,7 @@ exports.handleMetaWebhook = async (req, res) => {
             }
           } else if (session.step === 'DEALER_OPTIONS') {
             if (incomingText === 'showroom') {
-              replyText = `Please send your showroom details:\n\n📹 Showroom Video\n🪪 Visiting Card`;
+              replyText = `Please send your showroom details.\n\n📹 Showroom Video\n🪪 Visiting Card\n\nPlease send both files here.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
               
               session.step = 'WAIT_SHOWROOM_DETAILS';
@@ -187,7 +187,7 @@ exports.handleMetaWebhook = async (req, res) => {
                  const currentSession = chatSessions.get(senderPhone);
                  if (currentSession && currentSession.step === 'WAIT_SHOWROOM_DETAILS') {
                     // Send reminder
-                    await sendMessage({ type: 'text', text: { body: "📹 Please share your showroom video.\n\nYou can simply record a short video of your showroom and send it here." } });
+                    await sendMessage({ type: 'text', text: { body: "📹 Please share your showroom video and visiting card with us.\n\nYou can simply record a short video of your showroom and send it here." } });
                     // Ask question
                     await sendMessage({
                       type: 'interactive',
@@ -215,14 +215,23 @@ exports.handleMetaWebhook = async (req, res) => {
             }
           } else if (session.step === 'WAIT_SHOWROOM_DETAILS') {
             if (session.timer) clearTimeout(session.timer);
-            replyText = `Thank you! Our team will review your showroom details and get back to you shortly.`;
-            await sendMessage({ type: 'text', text: { body: replyText } });
-            chatSessions.delete(senderPhone);
+            // Ask question
+            await sendMessage({
+              type: 'interactive',
+              interactive: {
+                type: 'button',
+                body: { text: 'Do you need the product for personal use?' },
+                action: {
+                  buttons: [
+                    { type: 'reply', reply: { id: 'rem_personal_yes', title: 'Yes' } },
+                    { type: 'reply', reply: { id: 'rem_personal_no', title: 'No' } }
+                  ]
+                }
+              }
+            });
+            session.step = 'REMINDER_PERSONAL_USE';
           } else if (session.step === 'REMINDER_PERSONAL_USE') {
             if (incomingText === 'yes') {
-              replyText = `Thank you! 👍\n\nPlease share your requirement details with us, and our team will contact you shortly.`;
-              await sendMessage({ type: 'text', text: { body: replyText } });
-              
               // Create Inquiry Lead
               try {
                 let processedPhone = senderPhone;
@@ -243,9 +252,13 @@ exports.handleMetaWebhook = async (req, res) => {
               } catch (err) {
                 console.error('[Chatbot] Error saving lead:', err);
               }
+              
+              replyText = `Thank you! 👍\n\nYour inquiry has been submitted successfully.\nOur team will contact you shortly.`;
+              await sendMessage({ type: 'text', text: { body: replyText } });
               chatSessions.delete(senderPhone);
             } else if (incomingText === 'no') {
-              replyText = `Please send your showroom details:\n\n📹 Showroom Video\n🪪 Visiting Card\n\nOur team will review your showroom details and get back to you shortly.`;
+              // CONTINUE BUSINESS / DEALER FLOW -> END
+              replyText = `Thank you. Our team will review your showroom details and get back to you shortly.`;
               await sendMessage({ type: 'text', text: { body: replyText } });
               chatSessions.delete(senderPhone);
             } else {

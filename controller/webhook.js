@@ -222,7 +222,7 @@ exports.handleMetaWebhook = async (req, res) => {
                       }
                     }, 10000);
                   }
-                }, 10000); // 10 seconds wait
+                }, 60000); // 1 minute wait
               } else if (incomingText === 'personal use') {
                 session.step = 'NAME';
                 replyText = `Please reply with your *Full Name*.`;
@@ -424,7 +424,7 @@ exports.handleMetaWebhook = async (req, res) => {
                   }
                 }, 10000);
               }
-            }, 10000); // 10 seconds wait
+            }, 60000); // 1 minute wait
           } else if (incomingText) {
             // If not a keyword and no active session, send it to AI
             console.log(`[Chatbot] Received general query from ${senderPhone}. Routing to AI...`);

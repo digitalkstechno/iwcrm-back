@@ -221,7 +221,8 @@ exports.handleMetaWebhook = async (req, res) => {
                 session.step = 'WAIT_SHOWROOM_DETAILS';
                 session.timer = setTimeout(async () => {
                   const currentSession = chatSessions.get(senderPhone);
-                  if (currentSession && currentSession.step === 'WAIT_SHOWROOM_DETAILS') {
+                  // Send unconditionally even if they responded
+                  if (true) {
                     
                     // Send the 3 videos
                     const videos = [
@@ -233,13 +234,29 @@ exports.handleMetaWebhook = async (req, res) => {
                       await sendMessage({ type: 'video', video: { link: url } });
                     }
 
-                    // Move to WAIT_AFTER_VIDEOS step
-                    currentSession.step = 'WAIT_AFTER_VIDEOS';
+                    // Send the price list
+                    const priceListImages = [
+                      "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ae65cd31-852c-48f9-bb6f-cbec7e1ad139.jpg",
+                      "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/d7601098-de22-4985-9c01-96d4335ccf87.jpg"
+                    ];
+                    for (const url of priceListImages) {
+                      await sendMessage({ type: 'image', image: { link: url } });
+                    }
+
+                    // Send the catalog
+                    await sendMessage({ type: 'document', document: { link: "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/3a73db26-014c-4a81-888b-31a9e4b96fc7.pdf", filename: "Catalog.pdf" } });
+
+                    // Move to WAIT_AFTER_VIDEOS step if they haven't moved on
+                    if (currentSession && currentSession.step === 'WAIT_SHOWROOM_DETAILS') {
+                      currentSession.step = 'WAIT_AFTER_VIDEOS';
+                    }
                     
                     // Second 10 seconds timer
-                    currentSession.timer = setTimeout(async () => {
-                      const s2 = chatSessions.get(senderPhone);
-                      if (s2 && s2.step === 'WAIT_AFTER_VIDEOS') {
+                    const activeSession = chatSessions.get(senderPhone);
+                    if (activeSession) {
+                      activeSession.timer = setTimeout(async () => {
+                        const s2 = chatSessions.get(senderPhone);
+                        if (s2 && s2.step === 'WAIT_AFTER_VIDEOS') {
                         // Ask question
                         await sendMessage({
                           type: 'interactive',
@@ -256,7 +273,8 @@ exports.handleMetaWebhook = async (req, res) => {
                         });
                         s2.step = 'REMINDER_PERSONAL_USE';
                       }
-                    }, 10000);
+                      }, 10000);
+                    }
                   }
                 }, 60000); // 1 minute wait
               } else if (incomingText === 'personal use') {
@@ -430,7 +448,8 @@ exports.handleMetaWebhook = async (req, res) => {
             const currentSession = chatSessions.get(senderPhone);
             currentSession.timer = setTimeout(async () => {
               const checkSession = chatSessions.get(senderPhone);
-              if (checkSession && checkSession.step === 'WAIT_SHOWROOM_DETAILS') {
+              // Send unconditionally even if they responded
+              if (true) {
                 
                 // Send the 3 videos
                 const videos = [
@@ -442,13 +461,29 @@ exports.handleMetaWebhook = async (req, res) => {
                   await sendMessage({ type: 'video', video: { link: url } });
                 }
 
-                // Move to WAIT_AFTER_VIDEOS step
-                checkSession.step = 'WAIT_AFTER_VIDEOS';
+                // Send the price list
+                const priceListImages = [
+                  "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/ae65cd31-852c-48f9-bb6f-cbec7e1ad139.jpg",
+                  "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/d7601098-de22-4985-9c01-96d4335ccf87.jpg"
+                ];
+                for (const url of priceListImages) {
+                  await sendMessage({ type: 'image', image: { link: url } });
+                }
+
+                // Send the catalog
+                await sendMessage({ type: 'document', document: { link: "https://confidentialcontent.s3.eu-west-1.wasabisys.com/6a5de066a92cd55385a7c8e2/3a73db26-014c-4a81-888b-31a9e4b96fc7.pdf", filename: "Catalog.pdf" } });
+
+                // Move to WAIT_AFTER_VIDEOS step if they haven't moved on
+                if (checkSession && checkSession.step === 'WAIT_SHOWROOM_DETAILS') {
+                  checkSession.step = 'WAIT_AFTER_VIDEOS';
+                }
 
                 // Second 10 seconds timer
-                checkSession.timer = setTimeout(async () => {
-                  const s2 = chatSessions.get(senderPhone);
-                  if (s2 && s2.step === 'WAIT_AFTER_VIDEOS') {
+                const activeSession = chatSessions.get(senderPhone);
+                if (activeSession) {
+                  activeSession.timer = setTimeout(async () => {
+                    const s2 = chatSessions.get(senderPhone);
+                    if (s2 && s2.step === 'WAIT_AFTER_VIDEOS') {
                     // Ask question
                     await sendMessage({
                       type: 'interactive',
@@ -467,7 +502,8 @@ exports.handleMetaWebhook = async (req, res) => {
                   }
                 }, 10000);
               }
-            }, 60000); // 1 minute wait
+            } // closes if (true)
+          }, 60000); // 1 minute wait
           } else if (incomingText) {
             // If not a keyword and no active session, send it to AI
             console.log(`[Chatbot] Received general query from ${senderPhone}. Routing to AI...`);

@@ -7,6 +7,7 @@ const axios = require('axios');
 // In-memory store for chat sessions
 const chatSessions = new Map();
 const inactivityTimers = new Map();
+const invisibleFanPromoSent = new Set();
 
 exports.verifyMetaWebhook = async (req, res) => {
   // Parse the query params
@@ -96,41 +97,44 @@ exports.handleMetaWebhook = async (req, res) => {
         }
 
         if (incomingText) {
-          if (inactivityTimers.has(senderPhone)) {
-            clearTimeout(inactivityTimers.get(senderPhone));
-          }
-
-          const timerId = setTimeout(async () => {
-            inactivityTimers.delete(senderPhone);
-            const currentSetting = await Setting.findOne({ configType: 'meta_whatsapp' });
-            if (currentSetting && currentSetting.metaDomain && currentSetting.metaPhoneNumberId && currentSetting.metaChannelToken) {
-              const domain = currentSetting.metaDomain.replace(/\/+$/, '');
-              const metaApiUrl = `${domain}/${currentSetting.metaPhoneNumberId}/messages`;
-              const cleanToken = currentSetting.metaChannelToken.replace(/\s+/g, '');
-              try {
-                await axios.post(metaApiUrl, {
-                  messaging_product: 'whatsapp',
-                  recipient_type: 'individual',
-                  to: senderPhone,
-                  type: 'interactive',
-                  interactive: {
-                    type: 'button',
-                    body: { text: 'Appko invisible fan ke bare me mahiti hai ?' },
-                    action: {
-                      buttons: [
-                        { type: 'reply', reply: { id: 'inv_fan_yes', title: 'Yes' } },
-                        { type: 'reply', reply: { id: 'inv_fan_no', title: 'No' } }
-                      ]
-                    }
-                  }
-                }, { headers: { 'Authorization': `Bearer ${cleanToken}`, 'Content-Type': 'application/json' }});
-                const s = chatSessions.get(senderPhone) || {};
-                s.step = 'INVISIBLE_FAN_PROMO';
-                chatSessions.set(senderPhone, s);
-              } catch (e) { console.error('[Chatbot] Error sending promo:', e.message); }
+          if (!invisibleFanPromoSent.has(senderPhone)) {
+            if (inactivityTimers.has(senderPhone)) {
+              clearTimeout(inactivityTimers.get(senderPhone));
             }
-          }, 3600000); // 1 hour
-          inactivityTimers.set(senderPhone, timerId);
+
+            const timerId = setTimeout(async () => {
+              inactivityTimers.delete(senderPhone);
+              invisibleFanPromoSent.add(senderPhone);
+              const currentSetting = await Setting.findOne({ configType: 'meta_whatsapp' });
+              if (currentSetting && currentSetting.metaDomain && currentSetting.metaPhoneNumberId && currentSetting.metaChannelToken) {
+                const domain = currentSetting.metaDomain.replace(/\/+$/, '');
+                const metaApiUrl = `${domain}/${currentSetting.metaPhoneNumberId}/messages`;
+                const cleanToken = currentSetting.metaChannelToken.replace(/\s+/g, '');
+                try {
+                  await axios.post(metaApiUrl, {
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: senderPhone,
+                    type: 'interactive',
+                    interactive: {
+                      type: 'button',
+                      body: { text: 'Appko invisible fan ke bare me mahiti hai ?' },
+                      action: {
+                        buttons: [
+                          { type: 'reply', reply: { id: 'inv_fan_yes', title: 'Yes' } },
+                          { type: 'reply', reply: { id: 'inv_fan_no', title: 'No' } }
+                        ]
+                      }
+                    }
+                  }, { headers: { 'Authorization': `Bearer ${cleanToken}`, 'Content-Type': 'application/json' }});
+                  const s = chatSessions.get(senderPhone) || {};
+                  s.step = 'INVISIBLE_FAN_PROMO';
+                  chatSessions.set(senderPhone, s);
+                } catch (e) { console.error('[Chatbot] Error sending promo:', e.message); }
+              }
+            }, 3600000); // 1 hour
+            inactivityTimers.set(senderPhone, timerId);
+          }
 
           // Check keywords from DB
           const setting = await Setting.findOne({ configType: 'meta_whatsapp' });

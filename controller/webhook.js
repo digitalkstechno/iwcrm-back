@@ -74,6 +74,11 @@ exports.handleMetaWebhook = async (req, res) => {
       }
 
       if (value.messages && value.messages[0]) {
+        if (process.env.WHATSAPP_BOT_FLOW_ENABLED !== 'true') {
+          console.log('[Chatbot] WhatsApp bot flow is disabled via WHATSAPP_BOT_FLOW_ENABLED in .env');
+          return;
+        }
+
         const messageObj = value.messages[0];
 
         // Extract text or interactive list/button responses
